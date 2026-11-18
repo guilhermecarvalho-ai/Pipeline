@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pipeline de Matrículas</title>
+<style>
+:root{--bg:#eef2f6;--card:#fff;--tx:#10243a;--mut:#5d6f82;--bd:#d8e0e8;--ac:#0b6e75;--acs:#d9f0f1;--ok:#14803c;--bad:#c0392b;--bars:#c9d6e2;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1620;--card:#15222f;--tx:#e6edf4;--mut:#93a5b7;--bd:#263646;--ac:#4cc3cb;--acs:#12353a;--ok:#4cc77a;--bad:#ff7b6b;--bars:#2a3d50}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1280px;margin:0 auto;padding:20px 16px 40px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:24px;margin:0;letter-spacing:-.01em}
+h2{font-size:16px;margin:0 0 10px}
+.mut{color:var(--mut);font-size:13px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px}
+.grid{display:grid;gap:12px;margin-bottom:12px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.kpi b{display:block;font-size:26px;letter-spacing:-.02em}
+.kpi span{color:var(--mut);font-size:13px}
+.big{border-color:var(--ac);background:var(--acs)}
+.courses{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.bar{height:10px;border-radius:5px;background:var(--bars);overflow:hidden;margin:8px 0 4px}
+.bar i{display:block;height:100%;background:var(--ac);transition:width .25s}
+.row{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--bd);font-size:14px}
+.row:last-child{border:0}
+.row em{font-style:normal;color:var(--mut)}
+label{font-size:13px;color:var(--mut);display:block;margin-bottom:3px}
+input,select,button{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:7px;padding:7px 9px;min-width:0}
+input[type=range]{padding:0;width:100%;accent-color:var(--ac)}
+:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+button{cursor:pointer;background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:600}
+button.ghost{background:transparent;color:var(--mut);border-color:var(--bd);font-weight:400}
+button.sm{padding:2px 7px;font-size:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.form,.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end}
+.filters{margin-bottom:12px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button.on{background:var(--ac);color:var(--bg)}
+.tabs button:not(.on){background:transparent;color:var(--tx);border-color:var(--bd)}
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:10px;overflow-x:auto;padding-bottom:6px}
+.col{background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:8px;min-height:160px}
+.col.over{outline:2px dashed var(--ac)}
+.col h3{font-size:14px;margin:2px 4px 0;display:flex;justify-content:space-between}
+.k{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:8px;margin-top:8px;cursor:grab;font-size:13px}
+.k.drag{opacity:.4}
+.k strong{display:block;font-size:14px}
+.k .mut{display:block}
+.k input[type=date]{width:100%;margin-top:6px;padding:3px 6px;font-size:12px}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:680px}
+th{text-align:left;font-weight:600;color:var(--mut);border-bottom:1px solid var(--bd);padding:6px 8px}
+td{padding:6px 8px;border-bottom:1px solid var(--bd)}
+td select{padding:3px 6px}
+.late{color:var(--bad);font-weight:600}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;background:var(--acs);color:var(--ac)}
+.empty{color:var(--mut);padding:14px 0}
+#login{max-width:340px;margin:12vh auto;display:grid;gap:10px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:14px;z-index:9}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<form id="login" class="card" hidden>
+  <h1>Pipeline de matrículas</h1>
+  <p class="mut" style="margin:0">Entre com o e-mail e a senha criados pelo administrador.</p>
+  <div><label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username" required style="width:100%"></div>
+  <div><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required style="width:100%"></div>
+  <button type="submit">Entrar</button>
+  <div id="lErr" class="bad" role="alert"></div>
+</form>
+
+<main id="app" hidden>
+<header>
+  <div><h1>Pipeline de matrículas</h1><span class="mut" id="who"></span></div>
+  <div><button class="ghost" id="csv" type="button">Exportar CSV</button> <button class="ghost" id="out" type="button">Sair</button></div>
+</header>
+
+<section class="grid kpis" id="kpis"></section>
+
+<section class="card" style="margin-bottom:12px">
+  <h2>Simulador de meta</h2>
+  <label for="rate">Se eu converter <b id="rateV">50%</b> dos alunos que ainda estão no pipeline aberto:</label>
+  <input id="rate" type="range" min="0" max="100" step="5" value="50">
+  <div class="grid kpis" id="sim" style="margin:12px 0 0"></div>
+</section>
+
+<section class="grid courses" id="courses"></section>
+
+<section class="card" style="margin-bottom:12px">
+  <h2>Adicionar aluno</h2>
+  <form class="form" id="add">
+    <div><label for="fCurso">Curso</label><select id="fCurso"></select></div>
+    <div><label for="fColab">Colaborador</label><input id="fColab" list="colabs" required placeholder="Nome do colaborador"><datalist id="colabs"></datalist></div>
+    <div><label for="fAluno">Aluno</label><input id="fAluno" required placeholder="Nome do aluno"></div>
+    <div><label for="fEtapa">Etapa</label><select id="fEtapa"></select></div>
+    <div><label for="fData">Data de retorno</label><input id="fData" type="date"></div>
+    <div><button type="submit">Adicionar aluno</button></div>
+  </form>
+</section>
+
+<section class="card">
+  <div class="filters">
+    <div><label for="q">Buscar aluno</label><input id="q" type="search" placeholder="Digite um nome"></div>
+    <div><label for="fltCurso">Curso</label><select id="fltCurso"></select></div>
+    <div><label for="fltColab">Colaborador</label><select id="fltColab"></select></div>
+    <div class="tabs" style="margin:0"><button type="button" data-view="kanban" class="on">Quadro</button><button type="button" data-view="tabela">Tabela</button></div>
+  </div>
+  <div id="view"></div>
+  <p class="mut">Os cartões de meta e o simulador somam todos os alunos. Busca e filtros valem para o quadro e a tabela. No quadro, arraste o aluno para outra etapa.</p>
+</section>
+</main>
+<div id="toast" role="status" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+/* ====== CONFIGURE AQUI ====== */
+const SUPABASE_URL = "https://SEU-PROJETO.supabase.co";
+const SUPABASE_ANON_KEY = "SUA_CHAVE_ANON";
+/* ============================ */
+
+const ETAPAS = ["Lead","Contato feito","Visita ou aula experimental","Proposta","Matriculado","Perdido"];
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let D = { cursos: [], meses: 6, alunos: [] }, view = "kanban", rate = 50, rt = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const brl = n => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const hoje = () => new Date().toLocaleDateString("sv-SE");
+const ativo = r => r.etapa !== "Matriculado" && r.etapa !== "Perdido";
+const fdate = s => s ? s.split("-").reverse().join("/") : "sem data";
+const atrasado = r => ativo(r) && r.data_retorno && r.data_retorno < hoje();
+const opts = (list, sel, all) => (all ? `<option value="">${all}</option>` : "") + list.map(x => `<option${x === sel ? " selected" : ""}>${esc(x)}</option>`).join("");
+function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3500); }
+async function run(p, msg) { const { error } = await p; if (error) { toast((msg || "Erro") + ": " + error.message); return false } return true; }
+
+/* ---------- Auth ---------- */
+$("login").addEventListener("submit", async e => {
+  e.preventDefault();
+  const { error } = await sb.auth.signInWithPassword({ email: $("lEmail").value.trim(), password: $("lSenha").value });
+  $("lErr").textContent = error ? "E-mail ou senha incorretos." : "";
+});
+$("out").onclick = () => sb.auth.signOut();
+sb.auth.onAuthStateChange((_ev, session) => session ? enter(session) : leave());
+sb.auth.getSession().then(({ data }) => { if (!data.session) leave(); });
+
+async function enter(session) {
+  $("login").hidden = true; $("app").hidden = false;
+  $("who").textContent = session.user.email;
+  await load();
+  if (!rt) rt = sb.channel("pipe").on("postgres_changes", { event: "*", schema: "public" }, () => load()).subscribe();
+}
+function leave() {
+  $("app").hidden = true; $("login").hidden = false;
+  if (rt) { sb.removeChannel(rt); rt = null; }
+}
+
+/* ---------- Dados ---------- */
+async function load() {
+  const [c, k, a] = await Promise.all([
+    sb.from("cursos").select("*").order("nome"),
+    sb.from("config").select("meses").eq("id", 1).single(),
+    sb.from("alunos").select("*").order("created_at")
+  ]);
+  if (c.error || a.error) { toast("Não foi possível carregar os dados. Confira o schema.sql e a configuração."); return; }
+  D.cursos = c.data; D.meses = k.data ? k.data.meses : 6; D.alunos = a.data;
+  render();
+}
+function stats(c) {
+  const rs = D.alunos.filter(r => r.curso === c.nome);
+  const mat = rs.filter(r => r.etapa === "Matriculado").length, ab = rs.filter(ativo).length;
+  const m = (+c.mensalidade || 0) * D.meses, extra = Math.round(ab * rate / 100), pm = mat + extra;
+  return { mat, ab, meta: c.meta, falta: Math.max(0, c.meta - mat), pct: c.meta ? Math.min(100, Math.round(mat / c.meta * 100)) : 0,
+    real: mat * m, pot: c.meta * m, fal: Math.max(0, c.meta - mat) * m, pm, pfalta: Math.max(0, c.meta - pm), pfat: pm * m };
+}
+
+/* ---------- Render ---------- */
+function render() {
+  const S = D.cursos.map(c => ({ c, s: stats(c) }));
+  const T = S.reduce((t, { s }) => { for (const k of ["mat","ab","meta","falta","real","pot","fal","pm","pfalta","pfat"]) t[k] += s[k]; return t }, { mat:0, ab:0, meta:0, falta:0, real:0, pot:0, fal:0, pm:0, pfalta:0, pfat:0 });
+  const late = D.alunos.filter(atrasado).length, tp = T.meta ? Math.min(100, Math.round(T.mat / T.meta * 100)) : 0;
+  $("kpis").innerHTML =
+    `<div class="card kpi"><b>${T.meta}</b><span>Meta total de matrículas</span></div>
+     <div class="card kpi"><b>${T.mat}</b><span>Matriculados (${tp}%)</span></div>
+     <div class="card kpi"><b class="${T.falta ? "bad" : "ok"}">${T.falta}</b><span>Faltam para bater a meta</span></div>
+     <div class="card kpi"><b class="${late ? "bad" : ""}">${late}</b><span>Retornos atrasados</span></div>
+     <div class="card kpi big"><b>${brl(T.real)}</b><span>Faturamento realizado no semestre</span></div>
+     <div class="card kpi big"><b>${brl(T.pot)}</b><span>Potencial total se bater a meta</span></div>
+     <div class="card kpi"><b>${brl(T.fal)}</b><span>Falta faturar</span></div>
+     <div class="card kpi"><label for="meses">Mensalidades no semestre</label><input id="meses" type="number" min="1" max="12" value="${D.meses}"></div>`;
+  $("sim").innerHTML =
+    `<div class="card kpi"><b>${T.pm}</b><span>Matrículas projetadas (${T.ab} em aberto)</span></div>
+     <div class="card kpi"><b class="${T.pfalta ? "bad" : "ok"}">${T.pfalta ? T.pfalta : "Meta batida"}</b><span>${T.pfalta ? "Ainda faltariam" : "Nesse cenário"}</span></div>
+     <div class="card kpi"><b>${brl(T.pfat)}</b><span>Faturamento projetado no semestre</span></div>`;
+  $("courses").innerHTML = S.map(({ c, s }) => `
+    <div class="card"><h2>${esc(c.nome)} <span class="tag">${s.pct}% da meta</span></h2>
+    <div class="bar"><i style="width:${s.pct}%"></i></div>
+    <div class="row"><em>Matriculados</em><strong>${s.mat} de ${s.meta}</strong></div>
+    <div class="row"><em>Faltam para bater</em><strong class="${s.falta ? "bad" : "ok"}">${s.falta || "Meta batida"}</strong></div>
+    <div class="row"><em>Em andamento</em><strong>${s.ab}</strong></div>
+    <div class="two"><div><label>Mensalidade (R$)</label><input type="number" min="0" step="50" data-f="mensalidade" data-c="${esc(c.nome)}" value="${+c.mensalidade}"></div>
+    <div><label>Meta (matrículas)</label><input type="number" min="0" data-f="meta" data-c="${esc(c.nome)}" value="${c.meta}"></div></div>
+    <div class="row"><em>Faturamento realizado</em><strong>${brl(s.real)}</strong></div>
+    <div class="row"><em>Faturamento se bater a meta</em><strong>${brl(s.pot)}</strong></div>
+    <div class="row"><em>Falta faturar</em><strong>${brl(s.fal)}</strong></div>
+    <div class="row"><em>Projeção com ${rate}% do pipeline aberto</em><strong>${s.pm} matr. · ${brl(s.pfat)}</strong></div></div>`).join("");
+
+  const names = D.cursos.map(c => c.nome);
+  const fc = $("fltCurso").value, fp = $("fltColab").value;
+  const colabs = [...new Set(D.alunos.map(r => r.colaborador))].sort();
+  $("fltCurso").innerHTML = opts(names, fc, "Todos os cursos");
+  $("fltColab").innerHTML = opts(colabs, fp, "Todos os colaboradores");
+  $("colabs").innerHTML = colabs.map(c => `<option value="${esc(c)}">`).join("");
+  if (!$("fCurso").options.length) { $("fCurso").innerHTML = opts(names); $("fEtapa").innerHTML = opts(ETAPAS); }
+  renderView();
+}
+
+function filtered() {
+  const q = $("q").value.trim().toLowerCase(), fc = $("fltCurso").value, fp = $("fltColab").value;
+  return D.alunos.filter(r => (!fc || r.curso === fc) && (!fp || r.colaborador === fp) && (!q || r.aluno.toLowerCase().includes(q)))
+    .sort((a, b) => (a.data_retorno || "9999").localeCompare(b.data_retorno || "9999"));
+}
+function renderView() {
+  const L = filtered();
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+  if (view === "kanban") {
+    $("view").innerHTML = `<div class="board">` + ETAPAS.map(e => {
+      const cs = L.filter(r => r.etapa === e);
+      return `<div class="col" data-etapa="${e}"><h3>${e}<span class="mut">${cs.length}</span></h3>` + cs.map(r => `
+        <div class="k" draggable="true" data-id="${r.id}"><strong>${esc(r.aluno)}</strong>
+        <span class="mut">${esc(r.curso)} · ${esc(r.colaborador)}</span>
+        <span class="${atrasado(r) ? "late" : "mut"}">Retorno: ${fdate(r.data_retorno)}${atrasado(r) ? " (atrasado)" : ""}</span>
+        <input type="date" data-date="${r.id}" value="${r.data_retorno || ""}" aria-label="Data de retorno">
+        <button class="ghost sm" data-del="${r.id}" type="button" style="margin-top:6px">Remover</button></div>`).join("") + `</div>`;
+    }).join("") + `</div>`;
+  } else {
+    $("view").innerHTML = `<div class="wrap"><table><thead><tr><th>Curso</th><th>Colaborador</th><th>Aluno</th><th>Etapa</th><th>Retorno</th><th></th></tr></thead><tbody>` +
+      (L.length ? L.map(r => `<tr><td>${esc(r.curso)}</td><td>${esc(r.colaborador)}</td><td>${esc(r.aluno)}</td>
+        <td><select data-et="${r.id}" aria-label="Etapa">${opts(ETAPAS, r.etapa)}</select></td>
+        <td class="${atrasado(r) ? "late" : ""}"><input type="date" data-date="${r.id}" value="${r.data_retorno || ""}" aria-label="Data de retorno"></td>
+        <td><button class="ghost sm" data-del="${r.id}" type="button">Remover</button></td></tr>`).join("")
+        : `<tr><td colspan="6" class="empty">Nenhum aluno encontrado. Adicione um aluno ou limpe os filtros.</td></tr>`) + `</tbody></table></div>`;
+  }
+}
+
+/* ---------- Ações ---------- */
+async function setEtapa(id, etapa) {
+  const r = D.alunos.find(x => x.id === id); if (!r || r.etapa === etapa) return;
+  const old = r.etapa; r.etapa = etapa; render();
+  if (!await run(sb.from("alunos").update({ etapa }).eq("id", id), "Não foi possível mover")) { r.etapa = old; render(); }
+}
+$("add").addEventListener("submit", async e => {
+  e.preventDefault();
+  const ok = await run(sb.from("alunos").insert({ curso: $("fCurso").value, colaborador: $("fColab").value.trim(), aluno: $("fAluno").value.trim(), etapa: $("fEtapa").value, data_retorno: $("fData").value || null }), "Não foi possível adicionar");
+  if (ok) { $("fAluno").value = ""; toast("Aluno adicionado"); load(); }
+});
+document.addEventListener("change", async e => {
+  const t = e.target;
+  if (t.dataset.f) { if (await run(sb.from("cursos").update({ [t.dataset.f]: Math.max(0, +t.value || 0) }).eq("nome", t.dataset.c))) load(); }
+  else if (t.id === "meses") { if (await run(sb.from("config").update({ meses: Math.min(12, Math.max(1, +t.value || 6)) }).eq("id", 1))) load(); }
+  else if (t.dataset.et) setEtapa(t.dataset.et, t.value);
+  else if (t.dataset.date) { if (await run(sb.from("alunos").update({ data_retorno: t.value || null }).eq("id", t.dataset.date))) load(); }
+  else if (t.id === "fltCurso" || t.id === "fltColab") renderView();
+});
+document.addEventListener("click", async e => {
+  const t = e.target;
+  if (t.dataset.del && confirm("Remover este aluno do pipeline?")) { if (await run(sb.from("alunos").delete().eq("id", t.dataset.del))) load(); }
+  else if (t.dataset.view) { view = t.dataset.view; renderView(); }
+});
+$("q").addEventListener("input", renderView);
+$("rate").addEventListener("input", e => { rate = +e.target.value; $("rateV").textContent = rate + "%"; render(); });
+
+/* arrastar e soltar no quadro */
+let dragId = null;
+document.addEventListener("dragstart", e => { const k = e.target.closest && e.target.closest(".k"); if (k) { dragId = k.dataset.id; k.classList.add("drag"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragId); } });
+document.addEventListener("dragend", () => { dragId = null; document.querySelectorAll(".drag,.over").forEach(n => n.classList.remove("drag", "over")); });
+document.addEventListener("dragover", e => { const c = e.target.closest && e.target.closest(".col"); if (c && dragId) { e.preventDefault(); document.querySelectorAll(".over").forEach(n => n.classList.remove("over")); c.classList.add("over"); } });
+document.addEventListener("drop", e => { const c = e.target.closest && e.target.closest(".col"); if (c && dragId) { e.preventDefault(); setEtapa(dragId, c.dataset.etapa); } });
+
+/* exportar CSV */
+$("csv").onclick = () => {
+  const cell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [["Curso","Colaborador","Aluno","Etapa","Data de retorno"].join(";")].concat(filtered().map(r => [r.curso, r.colaborador, r.aluno, r.etapa, fdate(r.data_retorno)].map(cell).join(";")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" }));
+  a.download = "pipeline-matriculas.csv"; a.click(); URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>
